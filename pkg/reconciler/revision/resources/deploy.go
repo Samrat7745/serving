@@ -292,8 +292,8 @@ func makeContainer(container corev1.Container, rev *v1.Revision) corev1.Containe
 func makeServingContainer(servingContainer corev1.Container, rev *v1.Revision, allowCustomPort bool) corev1.Container {
 	userPort := getUserPort(rev)
 	userPortStr := strconv.Itoa(int(userPort))
-	// Replacement is safe as only up to a single port is allowed on the Revision
-	servingContainer.Ports = buildContainerPorts(userPort)
+	// Multi-port patch: the first port becomes the (renamed) user port, any additional ports are kept as is.
+	servingContainer.Ports = getContainerPorts(servingContainer.Ports, userPort)
 	servingContainer.Env = append(servingContainer.Env, buildUserPortEnv(userPortStr))
 	container := makeContainer(servingContainer, rev)
 	// If the user provides a liveness probe, we should rewrite in the port on the user-container for them.
@@ -328,6 +328,16 @@ func buildContainerPorts(userPort int32) []corev1.ContainerPort {
 		Name:          v1.UserPortName,
 		ContainerPort: userPort,
 	}}
+}
+
+// getContainerPorts returns the ports of the serving container: the first (user) port
+// renamed to v1.UserPortName followed by all additional user-specified ports unchanged.
+func getContainerPorts(ports []corev1.ContainerPort, userPort int32) []corev1.ContainerPort {
+	result := buildContainerPorts(userPort)
+	if len(ports) > 1 {
+		result = append(result, ports[1:]...)
+	}
+	return result
 }
 
 func buildVarLogSubpathEnvs() []corev1.EnvVar {

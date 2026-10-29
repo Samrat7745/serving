@@ -508,13 +508,16 @@ func AllMountedVolumes(containers []corev1.Container) sets.Set[string] {
 }
 
 // validateContainersPorts validates that the expected number of container ports are present
-// and returns the single serving port if error is nil.
+// and returns the serving port (the first port of the one container that declares ports)
+// if error is nil.
 func validateContainersPorts(containers []corev1.Container) (corev1.ContainerPort, *apis.FieldError) {
+	// Multi-port patch: a single container may declare several ports (the first
+	// one is the serving port), but only one container may declare ports.
 	var count int
 	var port corev1.ContainerPort
 	for i := range containers {
-		if c := len(containers[i].Ports); c > 0 {
-			count += c
+		if len(containers[i].Ports) > 0 {
+			count++
 			port = containers[i].Ports[0]
 		}
 	}
@@ -537,7 +540,7 @@ func validateContainersPorts(containers []corev1.Container) (corev1.ContainerPor
 		return port, &apis.FieldError{
 			Message: "more than one container port is set",
 			Paths:   []string{"ports"},
-			Details: "Only a single port is allowed across all containers",
+			Details: "Only a single container may declare ports",
 		}
 	}
 
@@ -794,6 +797,12 @@ func validateContainerPorts(ports []corev1.ContainerPort) *apis.FieldError {
 			Paths:   []string{apis.CurrentField},
 			Details: "Name must be empty, or one of: 'h2c', 'http1'",
 		})
+	}
+
+	// Multi-port patch: additional ports are passed through to the user container
+	// unchanged; only the basic checks (allowed fields, reserved ports, bounds) apply.
+	for i := 1; i < len(ports); i++ {
+		errs = errs.Also(validateContainerPortBasic(ports[i]).ViaIndex(i))
 	}
 
 	return errs

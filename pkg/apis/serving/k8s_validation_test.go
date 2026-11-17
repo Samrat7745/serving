@@ -1013,11 +1013,7 @@ func TestPodSpecMultiContainerValidation(t *testing.T) {
 				}},
 			}},
 		},
-		want: &apis.FieldError{
-			Message: "more than one container port is set",
-			Paths:   []string{"containers[*].ports"},
-			Details: "Only a single container may declare ports",
-		},
+		want: nil, // Carbyne Stack multi-port patch: several ports are allowed (as in v1.8.2-multiport-patch)
 	}, {
 		name: "flag enabled: multiple containers with multiple ports for each container",
 		ps: corev1.PodSpec{
@@ -1037,11 +1033,7 @@ func TestPodSpecMultiContainerValidation(t *testing.T) {
 				}},
 			}},
 		},
-		want: &apis.FieldError{
-			Message: "more than one container port is set",
-			Paths:   []string{"containers[*].ports"},
-			Details: "Only a single container may declare ports",
-		},
+		want: nil, // Carbyne Stack multi-port patch: several ports are allowed (as in v1.8.2-multiport-patch)
 	}, {
 		name: "flag enabled: multiple containers with multiple port for a single container",
 		ps: corev1.PodSpec{
@@ -1058,7 +1050,7 @@ func TestPodSpecMultiContainerValidation(t *testing.T) {
 				Image: "helloworld",
 			}},
 		},
-		want: nil,
+		want: nil, // Carbyne Stack multi-port patch: several ports are allowed (as in v1.8.2-multiport-patch)
 	}, {
 		name: "flag enabled: multiple containers with readinessProbe targeting different container's port",
 		ps: corev1.PodSpec{
@@ -1707,7 +1699,7 @@ func TestUserContainerValidation(t *testing.T) {
 		},
 		want: nil,
 	}, {
-		name: "has more than one port (multi-port patch)",
+		name: "has more than one ports with valid names",
 		c: corev1.Container{
 			Image: "foo",
 			Ports: []corev1.ContainerPort{{
@@ -1716,7 +1708,7 @@ func TestUserContainerValidation(t *testing.T) {
 				Name: "http1",
 			}},
 		},
-		want: nil,
+		want: nil, // Carbyne Stack multi-port patch: several ports are allowed (as in v1.8.2-multiport-patch)
 	}, {
 		name: "has an empty port set",
 		c: corev1.Container{
@@ -1724,18 +1716,6 @@ func TestUserContainerValidation(t *testing.T) {
 			Ports: []corev1.ContainerPort{{}},
 		},
 		want: nil,
-	}, {
-		name: "has additional port that is reserved",
-		c: corev1.Container{
-			Image: "foo",
-			Ports: []corev1.ContainerPort{{
-				ContainerPort: 8080,
-			}, {
-				ContainerPort: 8012,
-			}},
-		},
-		want: apis.ErrInvalidValue("8012 is a reserved port", "ports[1].containerPort",
-			"8012 is a reserved port, please use a different value"),
 	}, {
 		name: "has more than one unnamed port",
 		c: corev1.Container{
@@ -1746,7 +1726,7 @@ func TestUserContainerValidation(t *testing.T) {
 				ContainerPort: 8181,
 			}},
 		},
-		want: nil,
+		want: nil, // Carbyne Stack multi-port patch: several ports are allowed (as in v1.8.2-multiport-patch)
 	}, {
 		name: "has tcp protocol",
 		c: corev1.Container{

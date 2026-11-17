@@ -293,7 +293,7 @@ func makeServingContainer(servingContainer corev1.Container, rev *v1.Revision, a
 	userPort := getUserPort(rev)
 	userPortStr := strconv.Itoa(int(userPort))
 	// Multi-port patch: the first port becomes the (renamed) user port, any additional ports are kept as is.
-	servingContainer.Ports = getContainerPorts(servingContainer.Ports, userPort)
+	servingContainer.Ports = getContainerPorts(rev, userPort)
 	servingContainer.Env = append(servingContainer.Env, buildUserPortEnv(userPortStr))
 	container := makeContainer(servingContainer, rev)
 	// If the user provides a liveness probe, we should rewrite in the port on the user-container for them.
@@ -330,11 +330,12 @@ func buildContainerPorts(userPort int32) []corev1.ContainerPort {
 	}}
 }
 
-// getContainerPorts returns the ports of the serving container: the first (user) port
-// renamed to v1.UserPortName followed by all additional user-specified ports unchanged.
-func getContainerPorts(ports []corev1.ContainerPort, userPort int32) []corev1.ContainerPort {
+// getContainerPorts is the Carbyne Stack multi-port patch (same as v1.8.2-multiport-patch, commit
+// d67b8d968f): the first port of the revision's serving container (rev.Spec.GetContainer()) becomes the
+// user port (renamed to v1.UserPortName), all further ports of that container are appended unchanged.
+func getContainerPorts(rev *v1.Revision, userPort int32) []corev1.ContainerPort {
 	result := buildContainerPorts(userPort)
-	if len(ports) > 1 {
+	if ports := rev.Spec.GetContainer().Ports; len(ports) > 1 {
 		result = append(result, ports[1:]...)
 	}
 	return result
